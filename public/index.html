@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的生字簿</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 1rem; }
+        .section { border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
+        .hidden { display: none; }
+        input, button { padding: 0.5rem; margin: 0.5rem 0; width: 100%; box-sizing: border-box; }
+        button { background-color: #007BFF; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        .word-item { border-bottom: 1px dashed #aaa; padding: 0.5rem 0; }
+    </style>
+</head>
+<body>
+    <h1>📝 我的生字簿 Web App</h1>
+    <div id="authSection" class="section">
+        <h3>註冊 / 登入</h3>
+        <input type="text" id="username" placeholder="請輸入帳號">
+        <input type="password" id="password" placeholder="請輸入密碼">
+        <button onclick="register()">註冊</button>
+        <button onclick="login()" style="background-color: #28a745;">登入</button>
+        <p id="authMessage" style="color: red;"></p>
+    </div>
+    <div id="appSection" class="section hidden">
+        <h3 id="welcomeMsg"></h3>
+        <button onclick="logout()" style="background-color: #dc3545;">登出</button>
+        <hr>
+        <h4>➕ 新增生字</h4>
+        <input type="text" id="newWord" placeholder="英文單字 (例: Apple)">
+        <input type="text" id="newMeaning" placeholder="中文意思 (例: 蘋果)">
+        <button onclick="addWord()">加入生字簿</button>
+        <hr>
+        <h4>📖 我的生字列表</h4>
+        <div id="wordList"></div>
+    </div>
+    <script>
+        const API_URL = '/api'; // 改為相對路徑，方便線上部署
+        let currentUser = null;
+        async function register() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const res = await fetch(`${API_URL}/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            document.getElementById('authMessage').innerText = data.message;
+        }
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const res = await fetch(`${API_URL}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                currentUser = data.username;
+                document.getElementById('authSection').classList.add('hidden');
+                document.getElementById('appSection').classList.remove('hidden');
+                document.getElementById('welcomeMsg').innerText = `歡迎回來，${currentUser}！`;
+                loadWords();
+            } else {
+                document.getElementById('authMessage').innerText = data.message;
+            }
+        }
+        function logout() {
+            currentUser = null;
+            document.getElementById('authSection').classList.remove('hidden');
+            document.getElementById('appSection').classList.add('hidden');
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('authMessage').innerText = '';
+        }
+        async function addWord() {
+            const word = document.getElementById('newWord').value;
+            const meaning = document.getElementById('newMeaning').value;
+            if (!word || !meaning) return alert('請填寫生字與意思！');
+            await fetch(`${API_URL}/words`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: currentUser, word, meaning })
+            });
+            document.getElementById('newWord').value = '';
+            document.getElementById('newMeaning').value = '';
+            loadWords();
+        }
+        async function loadWords() {
+            const res = await fetch(`${API_URL}/words/${currentUser}`);
+            const words = await res.json();
+            const listDiv = document.getElementById('wordList');
+            listDiv.innerHTML = '';
+            words.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'word-item';
+                div.innerHTML = `<strong>${item.word}</strong> - ${item.meaning}`;
+                listDiv.appendChild(div);
+            });
+        }
+    </script>
+</body>
+</html>
