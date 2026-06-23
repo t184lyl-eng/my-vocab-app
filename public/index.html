@@ -1,106 +1,188 @@
 <!DOCTYPE html>
-<html lang="zh-HK">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的生字簿</title>
+    <title>我的英文生字簿</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 1rem; }
-        .section { border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
+        body { font-family: Arial, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; background-color: #f3f4f6; }
+        .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input { display: block; width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { width: 100%; padding: 10px; background-color: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background-color: #1d4ed8; }
+        .forgot-btn { background-color: #6b7280; margin-top: 5px; }
+        .forgot-btn:hover { background-color: #4b5563; }
+        .word-item { background: #eff6ff; padding: 10px; margin: 5px 0; border-radius: 4px; border-left: 4px solid #2563eb; }
         .hidden { display: none; }
-        input, button { padding: 0.5rem; margin: 0.5rem 0; width: 100%; box-sizing: border-box; }
-        button { background-color: #007BFF; color: white; border: none; cursor: pointer; }
-        button:hover { background-color: #0056b3; }
-        .word-item { border-bottom: 1px dashed #aaa; padding: 0.5rem 0; }
     </style>
 </head>
 <body>
-    <h1>📝 我的生字簿 Web App</h1>
-    <div id="authSection" class="section">
-        <h3>註冊 / 登入</h3>
-        <input type="text" id="username" placeholder="請輸入帳號">
-        <input type="password" id="password" placeholder="請輸入密碼">
-        <button onclick="register()">註冊</button>
-        <button onclick="login()" style="background-color: #28a745;">登入</button>
-        <p id="authMessage" style="color: red;"></p>
+
+    <div id="authSection" class="box">
+        <h2>歡迎使用生字簿 App</h2>
+        
+        <div id="loginForm">
+            <h3>用戶登入</h3>
+            <input type="text" id="loginUser" placeholder="用戶名">
+            <input type="password" id="loginPass" placeholder="密碼">
+            <button onclick="login()">登入</button>
+            <p style="text-align: center;">還沒有帳號？ <a href="#" onclick="toggleAuth(false)">立即註冊</a></p>
+            <p style="text-align: center;"><a href="#" onclick="toggleForgot(true)">忘記密碼？</a></p>
+        </div>
+
+        <div id="registerForm" class="hidden">
+            <h3>用戶註冊</h3>
+            <input type="text" id="regUser" placeholder="設定用戶名">
+            <input type="password" id="regPass" placeholder="設定密碼">
+            <input type="email" id="regEmail" placeholder="輸入您的電子郵件 (選填/接收通知)">
+            <button onclick="register()">確認註冊</button>
+            <p style="text-align: center;">已有帳號？ <a href="#" onclick="toggleAuth(true)">返回登入</a></p>
+        </div>
+
+        <div id="forgotForm" class="hidden">
+            <h3>重置密碼</h3>
+            <p style="font-size: 14px; color: #6b7280;">輸入註冊時填寫的 Email，系統將會發送臨時密碼給您。</p>
+            <input type="email" id="forgotEmail" placeholder="請輸入註冊的電子郵件">
+            <button onclick="forgotPassword()">尋找並重置密碼</button>
+            <button onclick="toggleForgot(false)" class="forgot-btn">返回登入</button>
+        </div>
     </div>
-    <div id="appSection" class="section hidden">
-        <h3 id="welcomeMsg"></h3>
-        <button onclick="logout()" style="background-color: #dc3545;">登出</button>
-        <hr>
-        <h4>➕ 新增生字</h4>
-        <input type="text" id="newWord" placeholder="英文單字 (例: Apple)">
-        <input type="text" id="newMeaning" placeholder="中文意思 (例: 蘋果)">
-        <button onclick="addWord()">加入生字簿</button>
-        <hr>
-        <h4>📖 我的生字列表</h4>
-        <div id="wordList"></div>
+
+    <div id="appSection" class="box hidden">
+        <h2>🎉 嗨，<span id="currentUsername"></span> 的生字簿</h2>
+        <button onclick="logout()" style="background-color: #ef4444; width: auto; float: right; padding: 5px 10px; font-size: 14px;">登出</button>
+        <div style="clear: both;"></div>
+
+        <div style="margin-top: 20px;">
+            <h3>新增生字</h3>
+            <input type="text" id="newWord" placeholder="英文單字 (例如: Apple)">
+            <input type="text" id="newMeaning" placeholder="中文解釋 (例如: 蘋果)">
+            <button onclick="addWord()">加入生字簿</button>
+        </div>
+
+        <div style="margin-top: 30px;">
+            <h3>我的生字列表</h3>
+            <div id="wordList">暫無單字紀錄</div>
+        </div>
     </div>
+
     <script>
-        const API_URL = '/api'; // 改為相對路徑，方便線上部署
-        let currentUser = null;
-        async function register() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const res = await fetch(`${API_URL}/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-            document.getElementById('authMessage').innerText = data.message;
+        let currentUser = '';
+
+        // 切換登入與註冊畫面
+        function toggleAuth(showLogin) {
+            document.getElementById('loginForm').classList.toggle('hidden', !showLogin);
+            document.getElementById('registerForm').classList.toggle('hidden', showLogin);
+            document.getElementById('forgotForm').classList.add('hidden');
         }
+
+        // 切換忘記密碼畫面
+        function toggleForgot(showForgot) {
+            document.getElementById('forgotForm').classList.toggle('hidden', !showForgot);
+            document.getElementById('loginForm').classList.toggle('hidden', showForgot);
+            document.getElementById('registerForm').classList.add('hidden');
+        }
+
+        // 註冊功能
+        async function register() {
+            const username = document.getElementById('regUser').value;
+            const password = document.getElementById('regPass').value;
+            const email = document.getElementById('regEmail').value;
+
+            if (!username || !password || !email) return alert('所有欄位皆為必填！');
+
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, email })
+            });
+            const data = await response.json();
+            alert(data.message);
+            if (response.ok) toggleAuth(true);
+        }
+
+        // 登入功能
         async function login() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const res = await fetch(`${API_URL}/login`, {
+            const username = document.getElementById('loginUser').value;
+            const password = document.getElementById('loginPass').value;
+
+            const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password })
             });
-            const data = await res.json();
-            if (res.ok) {
+            const data = await response.json();
+            
+            if (response.ok) {
                 currentUser = data.username;
+                document.getElementById('currentUsername').innerText = currentUser;
                 document.getElementById('authSection').classList.add('hidden');
                 document.getElementById('appSection').classList.remove('hidden');
-                document.getElementById('welcomeMsg').innerText = `歡迎回來，${currentUser}！`;
-                loadWords();
+                getWords();
             } else {
-                document.getElementById('authMessage').innerText = data.message;
+                alert(data.message);
             }
         }
-        function logout() {
-            currentUser = null;
-            document.getElementById('authSection').classList.remove('hidden');
-            document.getElementById('appSection').classList.add('hidden');
-            document.getElementById('username').value = '';
-            document.getElementById('password').value = '';
-            document.getElementById('authMessage').innerText = '';
+
+        // 忘記密碼功能
+        async function forgotPassword() {
+            const email = document.getElementById('forgotEmail').value;
+            if (!email) return alert('請輸入電子郵件！');
+
+            const response = await fetch('/api/forgot-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const data = await response.json();
+            alert(data.message);
+            if (response.ok) toggleForgot(false);
         }
+
+        // 新增生字功能
         async function addWord() {
             const word = document.getElementById('newWord').value;
             const meaning = document.getElementById('newMeaning').value;
-            if (!word || !meaning) return alert('請填寫生字與意思！');
-            await fetch(`${API_URL}/words`, {
+
+            if (!word || !meaning) return alert('請填寫單字與中文釋義！');
+
+            const response = await fetch('/api/words', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username: currentUser, word, meaning })
             });
-            document.getElementById('newWord').value = '';
-            document.getElementById('newMeaning').value = '';
-            loadWords();
+            
+            if (response.ok) {
+                document.getElementById('newWord').value = '';
+                document.getElementById('newMeaning').value = '';
+                getWords();
+            }
         }
-        async function loadWords() {
-            const res = await fetch(`${API_URL}/words/${currentUser}`);
-            const words = await res.json();
-            const listDiv = document.getElementById('wordList');
-            listDiv.innerHTML = '';
-            words.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'word-item';
-                div.innerHTML = `<strong>${item.word}</strong> - ${item.meaning}`;
-                listDiv.appendChild(div);
-            });
+
+        // 獲取生字列表
+        async function getWords() {
+            const response = await fetch(`/api/words/${currentUser}`);
+            const words = await response.json();
+            const wordListDiv = document.getElementById('wordList');
+            
+            if (words.length === 0) {
+                wordListDiv.innerHTML = '暫無單字紀錄';
+                return;
+            }
+
+            wordListDiv.innerHTML = words.map(w => `
+                <div class="word-item">
+                    <b>${w.word}</b> : ${w.meaning}
+                </div>
+            `).join('');
+        }
+
+        // 登出
+        function logout() {
+            currentUser = '';
+            document.getElementById('authSection').classList.remove('hidden');
+            document.getElementById('appSection').classList.add('hidden');
+            toggleAuth(true);
         }
     </script>
 </body>
