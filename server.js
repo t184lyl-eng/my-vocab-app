@@ -1,17 +1,17 @@
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
-const { Resend } = require('resend'); // 引入寄信套件
+const { Resend } = require('resend');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 app.use(express.static('public'));
 
-// 【已嵌入】你專屬的 Resend 寄信 API Key
+// 你專屬的 Resend 寄信 API Key
 const resend = new Resend('re_SWiiEzsS_ADceDfw7dwoZ5bD7pJDuXAhr');
 
-// 記憶體儲存，用戶資料包含 username, passwordHash, email
+// 原生記憶體陣列儲存
 const dbUsers = [];
 const dbWords = [];
 
@@ -21,7 +21,7 @@ function hashPassword(password) {
     return crypto.createHmac('sha256', SECRET_SALT).update(password).digest('hex');
 }
 
-// 1. 用戶註冊 API（新增：綁定 Email、寄送歡迎信）
+// 1. 用戶註冊 API
 app.post('/api/register', async (req, res) => {
     const { username, password, email } = req.body;
     
@@ -39,10 +39,10 @@ app.post('/api/register', async (req, res) => {
     // 寄送註冊成功通知信
     try {
         await resend.emails.send({
-            from: 'onboarding@resend.dev', // Resend 免費測試域名
+            from: 'onboarding@resend.dev',
             to: email,
             subject: '🎉 歡迎加入生字簿 App！註冊成功通知',
-            html: `<p>嗨 ${username}，</p><p>恭喜你成功註冊生字簿 App！現在你可以開始記錄你的專屬單字，提升英文能力囉！</p>`
+            html: `<p>嗨 ${username}，</p><p>恭喜你成功註冊生字簿 App！現在你可以開始記錄你的專屬單字囉！</p>`
         });
     } catch (error) {
         console.log('郵件寄送失敗，但帳號已註冊成功。', error);
@@ -51,7 +51,7 @@ app.post('/api/register', async (req, res) => {
     res.json({ message: '註冊成功！已發送通知信至您的 Email。' });
 });
 
-// 2. 尋找密碼 API（生成隨機新臨時密碼並寄信）
+// 2. 尋找密碼 API
 app.post('/api/forgot-password', async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: '請輸入電子郵件！' });
@@ -59,13 +59,9 @@ app.post('/api/forgot-password', async (req, res) => {
     const user = dbUsers.find(u => u.email === email);
     if (!user) return res.status(400).json({ message: '找不到綁定此電子郵件的用戶！' });
 
-    // 隨機生成一個 8 位數的臨時新密碼
     const tempPassword = crypto.randomBytes(4).toString('hex');
-    
-    // 更新該用戶的加密密碼
     user.passwordHash = hashPassword(tempPassword);
 
-    // 寄送新密碼信件
     try {
         await resend.emails.send({
             from: 'onboarding@resend.dev',
